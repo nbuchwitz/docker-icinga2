@@ -146,6 +146,7 @@ compose-alpine:	params
 	docker-compose \
 		--file compose/head.yml \
 		--file compose/database.yml \
+		--file compose/consul.yml \
 		--file compose/icingaweb2.yml \
 		--file compose/alpine/master.yml \
 		--file compose/alpine/satellite.yml \

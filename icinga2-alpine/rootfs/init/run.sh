@@ -29,6 +29,7 @@ fi
 [[ -f /etc/environment ]] && . /etc/environment
 
 . /init/output.sh
+. /init/config_backend.sh
 . /init/environment.sh
 . /init/runtime/service_handler.sh
 
@@ -113,6 +114,12 @@ run() {
     then
       nohup /init/runtime/zone_watcher.sh > /dev/stdout 2>&1 &
     fi
+  fi
+
+  if [[ ! -z "${CONFIG_BACKEND_SERVER}" ]] && [[ ! -z "${CONFIG_BACKEND}" ]]
+  then
+    save_config
+    register_node
   fi
 
   /usr/sbin/icinga2 \
