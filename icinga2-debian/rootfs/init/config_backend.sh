@@ -1,4 +1,7 @@
 
+set +e
+set +u
+
 if [[ ! -z "${CONFIG_BACKEND_SERVER}" ]]
 then
   if [[ -z "${CONFIG_BACKEND}" ]]
@@ -18,6 +21,9 @@ then
   fi
 fi
 
+set -e
+set -u
+
 save_config() {
 
 #  set_var  "root_user" "${MYSQL_SYSTEM_USER}"
@@ -33,6 +39,6 @@ save_config() {
   set_var  'icinga/database/ido/user'         'icinga2'
   set_var  'icinga/database/ido/password'     ${IDO_PASSWORD}
   set_var  'icinga/database/ido/schema'       ${IDO_DATABASE_NAME}
-  set_var  'icinga/api/users/'                ''
+#  set_var  'icinga/api/users/'                ''
 
 }
