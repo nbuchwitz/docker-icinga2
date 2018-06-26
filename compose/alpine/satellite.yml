@@ -20,6 +20,9 @@ services:
     restart: always
     privileged: true
     environment:
+      - CONFIG_BACKEND=consul
+      - CONFIG_BACKEND_SERVER=consul-master
+      #
       - DEBUG=0
       - ICINGA2_MASTER=icinga2-master.matrix.lan
       - ICINGA2_PARENT=icinga2-master.matrix.lan

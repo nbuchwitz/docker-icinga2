@@ -22,7 +22,11 @@ services:
       - 5665:5665
       - 8080:8080
     environment:
+      - CONFIG_BACKEND=consul
+      - CONFIG_BACKEND_SERVER=consul-master
+      #
       - ICINGA2_API_USERS=root:icinga,dashing:dashing,cert:foo-bar
+      - DEBUG=1
       - LOG_LEVEL=info
       - MYSQL_HOST=database
       - MYSQL_ROOT_USER=root

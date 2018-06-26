@@ -29,6 +29,7 @@ fi
 [[ -f /etc/environment ]] && . /etc/environment
 
 . /init/output.sh
+. /init/config_backend.sh
 . /init/environment.sh
 . /init/runtime/service_handler.sh
 

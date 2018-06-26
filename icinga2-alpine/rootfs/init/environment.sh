@@ -81,8 +81,18 @@ export PKI_KEY_FILE="${ICINGA2_CERT_DIRECTORY}/${HOSTNAME}.key"
 export PKI_CSR_FILE="${ICINGA2_CERT_DIRECTORY}/${HOSTNAME}.csr"
 export PKI_CRT_FILE="${ICINGA2_CERT_DIRECTORY}/${HOSTNAME}.crt"
 
-
 NEEDED_SERVICES="database"
+
+# -----------------------------------------------------------------------------------
+
+if [[ ! -z "${CONFIG_BACKEND_SERVER}" ]] && [[ ! -z "${CONFIG_BACKEND}" ]]
+then
+  wait_for_config_backend
+
+  DATABASE_PASSWORD=$(get_var "database/root/password")
+
+  echo "database password: '${DATABASE_PASSWORD}'"
+fi
 
 # -----------------------------------------------------------------------------------
 
@@ -103,5 +113,7 @@ export ICINGA2_MAJOR_VERSION
 export ICINGA2_CERT_DIRECTORY
 export ICINGA2_LIB_DIRECTORY
 export HOSTNAME
+
+set +x
 
 # -----------------------------------------------------------------------------------

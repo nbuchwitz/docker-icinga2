@@ -29,6 +29,7 @@ RUN \
     file \
     gnupg2 \
     python3.5-minimal \
+    pwgen \
     xz-utils \
     > /dev/null && \
   curl \
