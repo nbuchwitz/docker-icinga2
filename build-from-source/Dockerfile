@@ -1,5 +1,5 @@
 
-FROM alpine:3.7 as builder
+FROM alpine:3.8 as builder
 
 ARG BUILD_DATE
 ARG BUILD_VERSION
@@ -12,9 +12,11 @@ ENV \
 WORKDIR /build
 
 RUN \
-  apk update --quiet --no-cache  && \
-  apk upgrade --quiet --no-cache && \
-  apk add --quiet --no-cache --virtual .build-deps \
+  apk update  --no-cache  && \
+  apk upgrade  --no-cache
+
+RUN \
+  apk add  --no-cache --virtual .build-deps \
     autoconf \
     automake \
     build-base \
@@ -27,6 +29,7 @@ RUN \
     libdbi-dev \
     openldap-dev \
     net-snmp-dev \
+    musl-dbg \
     libressl-dev \
     libedit-dev \
     mariadb-dev \
@@ -34,8 +37,10 @@ RUN \
     gettext-dev \
     perl-dev \
     yajl-dev \
-    shadow && \
-  apk add --quiet --no-cache \
+    shadow
+
+RUN \
+  apk add  --no-cache \
     file \
     fping \
     samba-client \
@@ -44,36 +49,14 @@ RUN \
     libedit \
     yajl \
     gettext \
+    monitoring-plugins \
     mariadb-client \
-    mariadb-client-libs \
     postgresql-client \
     boost \
     boost-program_options
 
 RUN \
   echo "export BUILD_DATE=${BUILD_DATE}" > /etc/environment
-
-RUN \
-  git clone https://github.com/monitoring-plugins/monitoring-plugins.git && \
-  cd /build/monitoring-plugins/ && \
-  # should fix this:
-  # ar: `u' modifier ignored since `D' is the default (see `U')
-  # see: https://bugzilla.redhat.com/show_bug.cgi?id=1155273#c13
-  export ARFLAGS='cr' && \
-  export AR_FLAGS='cr' && \
-  sed -i 's|sys/poll.h|poll.h|' plugins/common.h && \
-  sed -i 's|sys/poll.h|poll.h|' plugins-root/check_dhcp.c && \
-  ./tools/setup && \
-  ./configure \
-    --libexecdir="/usr/lib/monitoring-plugins" \
-    --prefix=/usr \
-    --without-ipv6 \
-    --with-pgsql=/usr \
-    --with-mysql  \
-    --with-fping-command=$(which fping) \
-    --with-nslookup-command=$(which nslookup) && \
-  make --silent --jobs=2 && \
-  make install --silent
 
 #RUN \
 #  cd /build && \
@@ -91,6 +74,8 @@ RUN \
   git clone https://github.com/Icinga/icinga2.git && \
   mv icinga2 icinga2-${ICINGA2_VERSION} && \
   cd icinga2-${ICINGA2_VERSION} && \
+  version=$(git describe --tags --always | sed 's/^v//') && \
+  echo "build version: ${version}" && \
   git checkout support/2.8
 
 RUN \
@@ -99,7 +84,7 @@ RUN \
   cd build && \
   cmake .. \
     -DCMAKE_VERBOSE_MAKEFILE=OFF \
-    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DCMAKE_INSTALL_SYSCONFDIR=/etc \
     -DCMAKE_INSTALL_SBINDIR=/usr/sbin \
@@ -109,14 +94,13 @@ RUN \
     -DICINGA2_WITH_LIVESTATUS=ON \
     -DICINGA2_GIT_VERSION_INFO=OFF \
     -DICINGA2_RUNDIR=/run \
-    -DICINGA2_SYSCONFIGFILE=/etc/icinga2 \
+    -DICINGA2_SYSCONFIGFILE=/etc/default/icinga2 \
     -DICINGA2_PLUGINDIR=/usr/lib/monitoring-plugins \
     -DICINGA2_LTO_BUILD=ON && \
   make --silent --jobs=2 && \
   cd /build/icinga2-${ICINGA2_VERSION}/build && \
   make config && \
   make install
-
 
 RUN \
   cp -ar /usr/etc/icinga2/* /etc/icinga2/ && \
@@ -126,7 +110,7 @@ CMD [ "/bin/sh" ]
 
 # ---------------------------------------------------------------------------------------
 
-FROM alpine:3.7
+FROM alpine:3.8
 
 COPY --from=builder /usr/lib/monitoring-plugins /usr/lib/monitoring-plugins
 COPY --from=builder /etc/icinga2 /etc/icinga2
@@ -144,21 +128,22 @@ COPY --from=builder /etc/environment /etc/environment
 
 RUN \
   if [ -f /etc/environment ] ; then . /etc/environment; fi && \
-  apk update --quiet --no-cache  && \
-  apk upgrade --quiet --no-cache && \
-  apk add --quiet --no-cache --virtual .build-deps \
+  apk update  --no-cache  && \
+  apk upgrade  --no-cache && \
+  apk add  --no-cache --virtual .build-deps \
     shadow && \
-  apk add --quiet --no-cache \
+  apk add  --no-cache \
     file \
     fping \
+    strace \
     samba-client \
     net-snmp-tools \
     iputils \
     libedit \
     yajl \
     gettext \
+    monitoring-plugins \
     mariadb-client \
-    mariadb-client-libs \
     postgresql-client \
     boost \
     boost-program_options && \
@@ -178,20 +163,30 @@ RUN \
   chmod ug+rwX,o-rwx /var/lib/icinga2 && \
   chmod ug+rwX,o-rwx /var/spool/icinga2 && \
   chmod ug+rwX,o-rwx /var/log/icinga2 && \
-  apk del --quiet .build-deps && \
+  apk del  .build-deps && \
+  rm -rf \
+    /tmp/* \
+    /build \
+    /var/cache/apk/* \
+    /var/cache/icinga2/* && \
   echo "" && \
   which icinga2 && \
   icinga2 --version && \
   icinga2 daemon --validate && \
   icinga2 feature list && \
-  echo "" && \
-  rm -rf \
-    /tmp/* \
-    /build \
-    /var/cache/apk/* \
-    /var/cache/icinga2/*
+  echo ""
 
-WORKDIR /etc/icinga2
+COPY rootfs/ /
 
-CMD [ "/init/run.sh" ]
+WORKDIR "/etc/icinga2"
 
+VOLUME [ "/etc/icinga2", "/var/lib/icinga2" ]
+
+HEALTHCHECK \
+  --interval=5s \
+  --timeout=2s \
+  --retries=12 \
+  --start-period=10s \
+  CMD ps ax | grep -v grep | grep -c $(cat /run/icinga2/icinga2.pid) || exit 1
+
+CMD ["/bin/bash"]
